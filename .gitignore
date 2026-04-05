@@ -1,0 +1,4 @@
+/target
+# Environment files
+.env
+.env.local
