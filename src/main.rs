@@ -4,7 +4,7 @@ mod dtos;
 mod models;
 mod config;
 mod errors;
-
+mod db;
 #[tokio::main]
 async fn main() {
     let app = Router::new().route("/", get(root));

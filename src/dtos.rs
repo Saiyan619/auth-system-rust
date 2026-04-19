@@ -30,7 +30,7 @@ pub struct FilterUserDto{
     pub id: String,
     pub name: String,
     pub email: String,
-    pub verified: Option<String>,
+    pub verified: bool,
     pub role: String,
     #[serde(rename = "createdAt")]
     pub created_at: DateTime<Utc>,
@@ -44,7 +44,7 @@ impl FilterUserDto{
     id: user.id.to_string(),
      name: user.name.to_string(),
       email: user.email.to_string(),
-     verified: user.verified.clone(),
+     verified: user.verified,
      role: user.role.to_str().to_string(),
     created_at: user.created_at.unwrap(),
     updated_at: user.updated_at.unwrap()
@@ -58,7 +58,7 @@ impl FilterUserDto{
 }
 
 #[derive(Debug, Validate, Serialize, Deserialize, Clone, Copy)]
-pub struct userPageQuery{
+pub struct UserPageQuery{
     #[validate(range(min=1))]
     pub page:Option<usize>,
     #[validate(range(min=1, max=50))]
