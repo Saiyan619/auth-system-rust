@@ -6,12 +6,12 @@ use uuid::Uuid;
 use crate::models::{User, UserRole};
 
 #[derive(Debug, Clone)]
-struct DbClient{
+pub struct DbClient{
     pool: Pool<Postgres>
 }
 
 impl DbClient {
-    fn new(pool:Pool<Postgres>) -> Self{
+    pub fn new(pool:Pool<Postgres>) -> Self{
         DbClient { pool }
     }
 }

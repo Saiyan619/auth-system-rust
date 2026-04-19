@@ -1,10 +1,8 @@
-use argon2::password_hash::rand_core::impls;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
     Json
 };
-use lettre::message;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
