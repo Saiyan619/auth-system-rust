@@ -59,7 +59,8 @@ impl ErrorMessage{
     }
 }
 
-struct HttpError{
+#[derive(Debug, Clone)]
+pub struct HttpError{
     message: String,
     status: StatusCode
 }

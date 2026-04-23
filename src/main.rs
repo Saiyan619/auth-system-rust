@@ -9,6 +9,7 @@ mod config;
 mod errors;
 mod db;
 mod utils;
+mod middleware;
 
 use config::Config;
 use db::DbClient;
