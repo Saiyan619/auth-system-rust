@@ -10,6 +10,8 @@ mod errors;
 mod db;
 mod utils;
 mod middleware;
+mod mail;
+mod handler;
 
 use config::Config;
 use db::DbClient;
