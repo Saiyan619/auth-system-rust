@@ -74,6 +74,10 @@ impl HttpError {
         HttpError { message: message.into(), status: StatusCode::INTERNAL_SERVER_ERROR }
     }
 
+    pub fn bad_request(message: impl Into<String>) -> Self{
+        HttpError { message: message.into(), status: StatusCode::BAD_REQUEST }
+    }
+
     pub fn unique_constraint_violation(message: impl Into<String>) -> Self {
         HttpError { 
             message: message.into(), 
