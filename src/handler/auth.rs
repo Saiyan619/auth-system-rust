@@ -1,13 +1,11 @@
 use std::{env, sync::Arc};
 
-use axum::{Extension, Json, body, http::{self, HeaderMap, StatusCode, header::{self, SET_COOKIE}, response}, response::IntoResponse};
+use axum::{Extension, Json, extract::Query, http::{HeaderMap, StatusCode, header::{self, SET_COOKIE}}, response::{IntoResponse, Redirect}};
 use axum_extra::extract::cookie::Cookie;
 use chrono::{Duration, Utc};
-use jsonwebtoken::Header;
-use time::Time;
 use validator::Validate;
 
-use crate::{AppState, db::{DbClient, UserExt}, dtos::{LoginUserRequestDto, RegisterUserDto, Response, UserLoginResponseDto}, errors::{ErrorMessage, HttpError}, mail::mails::send_verification_email, utils::{password::{self, compare}, token}};
+use crate::{AppState, db::{UserExt}, dtos::{LoginUserRequestDto, RegisterUserDto, Response, UserLoginResponseDto, VerifyEmailQueryDto}, errors::{ErrorMessage, HttpError}, mail::mails::send_verification_email, utils::{password::{self, compare}, token}};
 
 
 
@@ -80,5 +78,46 @@ pub async fn login(Extension(app_state): Extension<Arc<AppState>>, Json(body): J
          }else {
              Err(HttpError::bad_request(ErrorMessage::WrongCredentials.to_string()))
          }
+    }
+
+
+    pub async fn verify_email(Query(query_param): Query<VerifyEmailQueryDto>,Extension(app_state): Extension<Arc<AppState>>) 
+    -> Result<impl IntoResponse, HttpError>{
+        query_param.validate().map_err(|e| HttpError::bad_request(e.to_string()))?;
+        let result = app_state.db_client.get_user(None, None, None, Some(&query_param.token))
+        .await.map_err(|_| HttpError::bad_request(ErrorMessage::TokenNotProvided.to_string()))?;
+       let user = result.ok_or(HttpError::bad_request(ErrorMessage::InvalidToken.to_string()))?;
+
+       if let Some(expires_at) = user.token_expires_at{
+        if Utc::now() > expires_at {
+            Err(HttpError::server_error(ErrorMessage::InvalidToken.to_string()))?
+        }else {
+            Err(HttpError::server_error(ErrorMessage::PermissionDenied.to_string()))?
+        }
+       }
+
+       app_state.db_client.verified_token(&query_param.token).await.map_err(|e| HttpError::bad_request(e.to_string()))?;
+
+       let send_email_verification = send_verification_email(&user.email, &user.name, &query_param.token).await;
+
+       if let Err(e) = send_email_verification{
+        eprintln!("Error: Could not send email verification: {}", e)
+       }
+
+       let token = token::create_token(&user.id.to_string(), app_state.env.jwt_secret.as_bytes(), app_state.env.jwt_maxage).map_err(|e| HttpError::server_error(e.to_string()))?;
+
+       let cookie_duration = time::Duration::minutes(app_state.env.jwt_maxage * 60);
+       let cookie = Cookie::build(("token", token.clone())).path("/").max_age(cookie_duration).http_only(true).build();
+
+       let mut headers = HeaderMap::new();
+       headers.append(header::SET_COOKIE, token.to_string().parse().unwrap());
+
+       let frontend_url = format!("http://localhost:5173/settings");
+       let redirect = Redirect::to(&frontend_url);
+
+       let mut response = redirect.into_response();
+       response.headers_mut().extend(headers);
+
+       Ok(response)
     }
   
