@@ -5,7 +5,7 @@ use axum_extra::extract::cookie::Cookie;
 use chrono::{Duration, Utc};
 use validator::Validate;
 
-use crate::{AppState, db::{UserExt}, dtos::{LoginUserRequestDto, RegisterUserDto, Response, UserLoginResponseDto, VerifyEmailQueryDto}, errors::{ErrorMessage, HttpError}, mail::mails::send_verification_email, utils::{password::{self, compare}, token}};
+use crate::{AppState, db::UserExt, dtos::{ForgotPasswordRequestDto, LoginUserRequestDto, RegisterUserDto, ResetPasswordRequestDto, Response, UserLoginResponseDto, VerifyEmailQueryDto}, errors::{ErrorMessage, HttpError}, mail::mails::{send_forgot_password_email, send_verification_email}, utils::{password::{self, compare}, token}};
 
 
 
@@ -121,3 +121,70 @@ pub async fn login(Extension(app_state): Extension<Arc<AppState>>, Json(body): J
        Ok(response)
     }
   
+pub async fn forgot_password(Extension(app_state): Extension<Arc<AppState>>, Json(body): Json<ForgotPasswordRequestDto>)
+ -> Result<impl IntoResponse, HttpError> {
+    body.validate().map_err(|e| HttpError::bad_request(e.to_string()))?;
+    let result = app_state.db_client.get_user(None, None, Some(&body.email), None).await.map_err(|e| HttpError::server_error(e.to_string()))?;
+    let user = result.ok_or(HttpError::bad_request("Email not found!".to_string()))?;
+    let verification_token = uuid::Uuid::new_v4().to_string();
+    let expires_at = Utc::now() + Duration::minutes(30);
+    let user_id = uuid::Uuid::parse_str(&user.id.to_string()).unwrap();
+    app_state.db_client.add_verified_token(user_id, &verification_token, expires_at).await.map_err(|e| HttpError::server_error(e.to_string()))?;
+
+    let reset_link = format!("http://localhost:5173/reset-password?token={}", &verification_token);
+
+    let email_sent = send_forgot_password_email(&user.email, &user.name, &reset_link).await;
+
+    if let Err(e) = email_sent  {
+        eprint!("Email failed to send!");
+        return Err(HttpError::server_error("Failed to send forgot password reset email"));
+    }
+
+    let response = Response{
+        status: "success",
+        message: "Password reset link has been sent to your email.".to_string(),
+    };
+
+    Ok(Json(response))
+}
+
+pub async fn reset_password(Extension(app_state): Extension<Arc<AppState>>, Json(body): Json<ResetPasswordRequestDto>) 
+-> Result<impl IntoResponse, HttpError>{
+    body.validate().map_err(|e| HttpError::bad_request(e.to_string()))?;
+    let result = app_state.db_client.get_user(None, None, None, Some(&body.token.to_string()))
+    .await.map_err(|e| HttpError::server_error(e.to_string()))?;
+
+    let user = result.ok_or(HttpError::bad_request("Failed to get user!".to_string()))?;
+
+    if let Some(expires_at) = user.token_expires_at {
+        if Utc::now() > expires_at {
+             return Err(HttpError::bad_request("Verification token has expired".to_string()))?;
+        }else {
+            return Err(HttpError::bad_request("Invalid verification token".to_string()))?;
+        }
+    }
+
+    let user_id = uuid::Uuid::parse_str(&user.id.to_string()).unwrap();
+
+    let hashed_password = password::hash(&body.new_password).map_err(|e| HttpError::server_error(e.to_string()))?;
+
+
+     app_state.db_client
+        .update_user_password(user_id.clone(), hashed_password)
+        .await
+        .map_err(|e| HttpError::server_error(e.to_string()))?;
+
+    app_state.db_client
+        .verified_token(&body.token)
+        .await
+        .map_err(|e| HttpError::server_error(e.to_string()))?;
+
+    let response = Response {
+        message: "Password has been successfully reset.".to_string(),
+        status: "success",
+    };
+
+    Ok(Json(response))
+
+}
+

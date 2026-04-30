@@ -28,7 +28,7 @@ pub async fn welcome_email(username: &str, to_email: &str) -> Result<(), Box<dyn
     send_mail(to_email, subject, template_path, &placeholders).await
 }
 
-pub async fn send_reset_email(
+pub async fn send_forgot_password_email(
     to_email: &str,
     username: &str,
     reset_link: &str
