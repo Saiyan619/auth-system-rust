@@ -1,6 +1,6 @@
 use std::{env, sync::Arc};
 
-use axum::{Extension, Json, extract::Query, http::{HeaderMap, StatusCode, header::{self, SET_COOKIE}}, response::{IntoResponse, Redirect}};
+use axum::{Extension, Json, Router, extract::Query, http::{HeaderMap, StatusCode, header::{self, SET_COOKIE}}, response::{IntoResponse, Redirect}, routing::{get, post}};
 use axum_extra::extract::cookie::Cookie;
 use chrono::{Duration, Utc};
 use validator::Validate;
@@ -8,6 +8,14 @@ use validator::Validate;
 use crate::{AppState, db::UserExt, dtos::{ForgotPasswordRequestDto, LoginUserRequestDto, RegisterUserDto, ResetPasswordRequestDto, Response, UserLoginResponseDto, VerifyEmailQueryDto}, errors::{ErrorMessage, HttpError}, mail::mails::{send_forgot_password_email, send_verification_email}, utils::{password::{self, compare}, token}};
 
 
+pub fn auth_handler() -> Router {
+    Router::new()
+    .route("/register", post(register))
+        .route("/login", post(login))
+        .route("/verify", get(verify_email))
+        .route("/forgot-password", post(forgot_password))
+        .route("/reset-password", post(reset_password))
+}
 
 pub async fn register(Extension(app_state):Extension<Arc<AppState>>, Json(body): Json<RegisterUserDto>)
 -> Result<impl IntoResponse, HttpError> {
