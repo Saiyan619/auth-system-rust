@@ -1,7 +1,7 @@
 use std::{env, sync::Arc};
 
 use axum::{Extension, Json, Router, extract::Query, http::{HeaderMap, StatusCode, header::{self, SET_COOKIE}}, response::{IntoResponse, Redirect}, routing::{get, post}};
-use axum_extra::extract::cookie::Cookie;
+use axum_extra::extract::{CookieJar, cookie::Cookie};
 use chrono::{Duration, Utc};
 use validator::Validate;
 
@@ -12,6 +12,7 @@ pub fn auth_handler() -> Router {
     Router::new()
     .route("/register", post(register))
         .route("/login", post(login))
+        .route("/logout", post(logout))
         .route("/verify", get(verify_email))
         .route("/forgot-password", post(forgot_password))
         .route("/reset-password", post(reset_password))
@@ -88,7 +89,12 @@ pub async fn login(Extension(app_state): Extension<Arc<AppState>>, Json(body): J
          }
     }
 
+    pub async fn logout(cookie_jar: CookieJar) -> impl IntoResponse {
+    let cookie_jar = cookie_jar.remove("token");
 
+    (cookie_jar, StatusCode::OK)
+    }
+        
     pub async fn verify_email(Query(query_param): Query<VerifyEmailQueryDto>,Extension(app_state): Extension<Arc<AppState>>) 
     -> Result<impl IntoResponse, HttpError>{
         query_param.validate().map_err(|e| HttpError::bad_request(e.to_string()))?;
