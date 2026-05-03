@@ -1,4 +1,4 @@
-use std::{process::{exit}};
+use std::{process::exit, sync::Arc};
 use axum::{ Extension, Router, http::{HeaderValue, Method, header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}} };
 use dotenv::dotenv;
 use sqlx::{postgres::PgPoolOptions};
@@ -12,11 +12,14 @@ mod utils;
 mod middleware;
 mod mail;
 mod handler;
+mod route;
 
 use config::Config;
 use db::DbClient;
 use tower_http::cors::{CorsLayer};
 use tracing_subscriber::filter::LevelFilter;
+
+use crate::route::create_router;
 
 #[derive(Debug, Clone)]
 struct AppState{
@@ -56,7 +59,7 @@ async fn main() {
         db_client
     };
 
-    let app = Router::new().layer(Extension(app_state)).layer(cors.clone());
+    let app = create_router(Arc::new(app_state.clone())).layer(cors.clone());
 
     // let app = Router::new().route("/", get(root));
 
