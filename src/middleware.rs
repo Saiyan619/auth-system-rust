@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::{AppState, db::UserExt, errors::{ErrorMessage, HttpError}, models::{User, UserRole}, utils::token};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct JWTAuthMiddeware {
-    user: User
+pub struct JWTAuthMiddeware {
+    pub user: User
 }
 
 pub async fn auth(cookie: CookieJar, Extension(appstate):Extension<Arc<AppState>>, mut req: Request, next:Next) -> Result<impl IntoResponse, HttpError>{
@@ -62,10 +62,10 @@ pub async fn auth(cookie: CookieJar, Extension(appstate):Extension<Arc<AppState>
 
 
 pub async fn role_check(
-    req: Request,
     Extension(_app_state): Extension<Arc<AppState>>,
-    required_role: Vec<UserRole>,
-    next: Next
+    req: Request,
+    next: Next,
+    required_role: Vec<UserRole>
 ) -> Result<impl IntoResponse, HttpError>{
     let user = req.extensions().get::<JWTAuthMiddeware>().ok_or_else(||{
         HttpError::unauthorized(ErrorMessage::UserNotAuthenticated.to_string())

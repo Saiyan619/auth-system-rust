@@ -17,6 +17,14 @@ pub struct RegisterUserDto{
     pub password_confirm: String
 }
 
+#[derive(Serialize, Deserialize, Validate)]
+pub struct RequestQueryDto {
+    #[validate(range(min = 1))]
+    pub page: Option<usize>,
+    #[validate(range(min = 1, max = 50))]
+    pub limit: Option<usize>,
+}
+
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, Default)]
 pub struct LoginUserRequestDto{
     #[validate(length(min=6, message="Email is required"), email(message="Email is invalid"))]
@@ -67,20 +75,20 @@ pub struct UserPageQuery{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserData{
-    data: FilterUserDto
+    pub user: FilterUserDto
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserResponseTo{
-    pub status: i32,
+    pub status: String,
     pub data: UserData
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UsersResponseTo{
-    pub status: i32,
-    pub data: Vec<UserData>,
-    pub result: i32
+pub struct UserListResponseTo{
+    pub status: String,
+    pub data: Vec<FilterUserDto>,
+    pub result: i64
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -89,7 +97,7 @@ pub struct UserLoginResponseDto {
     pub token: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Response {
     pub status: &'static str,
     pub message: String,
